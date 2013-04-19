@@ -1,6 +1,8 @@
 import re
 from datetime import date, time
 
+from codes import Misc
+
 
 def read_alf(filename):
     return list(read_alf_generator(filename))
@@ -10,7 +12,6 @@ def date_dd_mm_yyyy(s):
 
 def read_alf_generator(filename):
     r = re.compile(",|=")
-    days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     with open(filename, 'r') as f:
         for l in f:
             a = dict(p.split("=") for p in l.split(","))
@@ -27,7 +28,7 @@ def read_alf_generator(filename):
             if "U" in a:
                 d["End Date"] = date_dd_mm_yyyy(a["U"])
             if "R" in a:
-                d["Days"] = dict(zip(days, (c=='1' for c in a["R"])))
+                d["Days"] = dict(zip(Misc.days, (c=='1' for c in a["R"])))
             yield d
 
 if __name__ == "__main__":

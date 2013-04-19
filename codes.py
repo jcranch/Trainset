@@ -1,3 +1,7 @@
+class Misc():
+
+    days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
 
 class CATE():
 
@@ -153,6 +157,49 @@ class Timetable():
         "N" : "New STP schedule (not an overlay)",
         "O" : "STP overlay of Permanent schedule",
         "P" : "Permanent" }
+
+    atoc_code = {
+        "AW": "ARRIVA Trains Wales",
+        "CC": "c2c",
+        "CH": "Chiltern Railway Co.",
+        "CT": "Central Trains",
+        "EM": "East Midlands Trains",
+        "ES": "Eurostar (UK)",
+        "FC": "First Capital Connect",
+        "GC": "Grand Central",
+        "GR": "GNER",
+        "GW": "First Great Western",
+        "GX": "Gatwick Express",
+        "HC": "Heathrow Connect",
+        "HT": "Hull Trains",
+        "HX": "Heathrow Express",
+        "IL": "Island Line",
+        "LE": "'one'",
+        "LM": "London Midlands",
+        "LO": "London Overground",
+        "LT": "London Underground",
+        "ME": "Merseyrail",
+        "ML": "Midland Mainline",
+        "NT": "Northern",
+        "NY": "North Yorkshire Moors Railway",
+        "SE": "Southeastern",
+        "SN": "Southern",
+        "SR": "First ScotRail",
+        "SS": "Silverlink Train Services",
+        "SW": "South West Trains",
+        "TP": "First TransPennine Express",
+        "TW": "Nexus (Tyne & Wear Metro)",
+        "VT": "Virgin Trains",
+        "WR": "West Coast Railway Co.",
+        "XC": "CrossCountry"}
+
+
+
+
+
+
+
+
 
 
 
