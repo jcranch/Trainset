@@ -2,6 +2,19 @@
 Parses the National Rail CIF format
 """
 
+# TODO:
+#  - Complete
+#  - See if the test run produces any empty or null fields (we should
+#    strip them out).
+#  - Investigate the semantics more thoroughly: particular Changes en
+#    Route. If these bear fixed resemblance to the locations
+#    before/after them, it may well make sense to parse the data
+#    differently. Also, should associations associate things that are
+#    already known?
+#  - Write some sensible subclasses of TimetableMachine, to place data
+#    in databases, etc.
+
+
 
 from datetime import date, datetime, time, timedelta
 from warnings import warn, filterwarnings
@@ -67,6 +80,10 @@ def timedelta_minh(s):
         return timedelta(minutes = int(s[0].strip() or 0), seconds = 30)
     else:
         return timedelta(minutes = int(s.strip()))
+
+
+def parse_days(s):
+    return dict(zip(Misc.days,(c == "1" for c in s)))
 
 
 def parse_activities(s):
@@ -154,7 +171,7 @@ class TimetableMachine():
         else:
             d["date_runs_to"] = date_yymmdd(l[15:21])
 
-        d["days_run"] = dict(zip(Misc.days,(c == "1" for c in l[21:28])))
+        d["days_run"] = parse_days(l[21:28])
 
         bhx = l[28].strip()
         if bhx:
@@ -222,6 +239,11 @@ class TimetableMachine():
             if c not in Timetable.service_branding:
                 warn("service_branding has %r"%(c,),UnrecognisedWarning)
 
+        stp_indicator = l[79].strip()
+        if stp_indicator not in Timetable.stp_indicator:
+            warn("stp_indicator = %r"%(stp_indicator,),UnrecognisedWarning)
+        d["stp_indicator"] = stp_indicator
+
 
     @linereader("BX")
     def read_BX(self):
@@ -273,12 +295,43 @@ class TimetableMachine():
 
     @linereader("AA")
     def read_AA(self):
-        warn("Can't do AA yet",UnsupportedWarning)
+        d = self.association
+        l = self.line
 
+        d["type"] = self.transaction_types[l[2]]
+        d["main_uid"] = l[3:9].strip()
+        d["associated_uid"] = l[9:15].strip()
+        d["start_date"] = date_yymmdd(l[15:21])
+        d["end_date"] = date_yymmdd(l[21:27])
+        d["days"] = parse_days(l[27:34])
+        d["category"] = Timetable.assocation_category(l[34:36])
+        
+        date_ind = l[36]
+        if date_ind not in Timetable.assocation_date_ind:
+            warn("date_ind = %r"%(date_ind,),UnrecognisedWarning)
+        d["date_ind"] = date_ind
 
-    @linereader("CR")
-    def read_CR(self):
-        warn("Can't do CR yet",UnsupportedWarning)
+        d["assocation_location"] = l[37:44].strip()
+
+        base_suffix = l[44]
+        if base_suffix not in [" ","2"]:
+            warn("base_suffix = %r"%(base_suffix,),UnrecognisedWarning)
+        d["base_suffix"] = base_suffix
+        
+        main_suffix = l[45]
+        if main_suffix not in [" ","2"]:
+            warn("main_suffix = %r"%(main_suffix,),UnrecognisedWarning)
+        d["main_suffix"] = main_suffix
+        
+        association_type = l[47]
+        if association_type not in Timetable.association_types:
+            warn("association_type = %r"%(association_type,),UnrecognisedWarning)
+        d["association_type"] = association_type
+
+        stp_indicator = l[79]
+        if stp_indicator not in Timetable.stp_indicator:
+            warn("stp_indicator = %r"%(stp_indicator,),UnrecognisedWarning)
+        d["stp_indicator"] = stp_indicator
 
 
     @linereader("TN")
@@ -350,9 +403,110 @@ class TimetableMachine():
             a["performance_allowance"] = performance_allowance
  
 
+    @linereader("CR")
+    def read_CR(self):
+        a = self.location
+        l = self.line
+
+        a["type"] = "change"
+        a["location"] = l[2:10].strip()
+
+        category = l[10:12].strip()
+        if category:
+            d["category"] = category
+            if category not in Timetable.category:
+                warn("category = %r"%(category,),UnrecognisedWarning)
+
+        identity = l[12:16].strip()
+        if identity:
+            d["identity"] = identity
+    
+        headcode = l[16:20].strip()
+        if headcode:
+            d["headcode"] = headcode
+
+        service_code = l[21:29].strip()
+        if service_code:
+            d["service_code"] = service_code
+        
+        portion_id = l[29].strip()
+        if portion_id:
+            d["portion_id"] = portion_id
+
+        power_type = l[30:33].strip()
+        if power_type:
+            d["power_type"] = power_type
+            if power_type not in Timetable.power_type:
+                warn("power_type = %r"%(power_type,),UnrecognisedWarning)
+        d["timing_load"] = l[33:37].strip() # should validate this
+
+        d["speed"] = int(l[37:40].strip() or 0)
+
+        operating_chars = list(l[40:46].strip())
+        d["operating_chars"] = operating_chars
+        for c in operating_chars:
+            if c not in Timetable.operating_chars:
+                warn("operating_chars has %r"%(c,),UnrecognisedWarning)
+
+        train_class = l[46].strip() or "B"
+        d["train_class"] = train_class
+        if train_class not in Timetable.train_class:
+            warn("train_class = %r"%(train_class,),UnrecognisedWarning)  
+        sleepers = l[47].strip()
+        if sleepers:
+            d["sleepers"] = sleepers
+            if sleepers not in Timetable.sleepers:
+                warn("sleepers = %r"%(sleepers,),UnrecognisedWarning)
+
+        reservations = l[48].strip()
+        if reservations:
+            d["reservations"] = reservations
+            if reservations not in Timetable.reservations:
+                warn("reservations = %r"%(sleepers,),UnrecognisedWarning)
+
+        connection_indicator = l[49].strip()
+        if connection_indicator:
+            d["connection_indicator"] = connection_indicator
+            if connection_indicator not in Timetable.connection_indicator:
+                warn("connection_indicator = %r"%(connection_indicator,),UnrecognisedWarning)
+
+        catering = list(l[50:54].strip())
+        d["catering"] = catering
+        for c in catering:
+            if c not in Timetable.catering:
+                warn("catering has %r"%(c,),UnrecognisedWarning)
+        
+        service_branding = list(l[54:58].strip())
+        d["service_branding"] = service_branding
+        for c in service_branding:
+            if c not in Timetable.service_branding:
+                warn("service_branding has %r"%(c,),UnrecognisedWarning)
+
+        uic_code = l[62:67].strip()
+        if uic_code:
+            d["uic_code"] = uic_code
+
+        rsid = l[67:75].strip()
+        if rsid:
+            d["rsid"] = rsid
+
+
     @linereader("LT")
     def read_LT(self):
-        warn("Can't do LT yet",UnsupportedWarning)
+        a = self.location
+        l = self.line
+
+        a["type"] = "terminating"
+        a["location"] = l[2:10].strip()
+        a["scheduled_arrival"] = time_hhmmx(l[10:15])
+        a["public_arrival"] = time_hhmm(l[15:19])
+        a["platform"] = l[19:22].strip()
+        a["path"] = l[22:25].strip()
+
+        train_activity = parse_activities(l[25:37])
+        if 'TF' not in train_activity:
+            warn("TF is not in train activities", WeirdBehaviour)
+        a["train_activity"] = train_activity
 
 
     @linereader("LN")
@@ -392,7 +546,9 @@ class TimetableMachine():
                 self.read_TD()
 
             while self.record_type == "AA":
+                self.assocation = {}
                 self.read_AA()
+                self.write_association
 
             while self.record_type == "BS":
                 self.schedule = {}
@@ -409,9 +565,11 @@ class TimetableMachine():
                         self.read_LN()
                     self.locations.append(self.location)
                 while self.record_type == "CR" or self.record_type == "LI":
-                    self.location = {}
                     if self.record_type == "CR":
+                        self.location = {}
                         self.read_CR()
+                        self.locations.append(self.location)
+                    self.location = {}
                     self.read_LI()
                     while self.record_type == "LN":
                         self.read_LN()
@@ -436,6 +594,11 @@ class TimetableMachine():
 
     def write_schedule(self):
         "Stores self.schedule in the appropriate way"
+        pass
+
+
+    def write_association(self):
+        "Stores self.association in the appropriate way"
         pass
 
 

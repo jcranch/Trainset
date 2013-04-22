@@ -228,3 +228,22 @@ class Timetable():
         "-U":"Stops to attach vehicles",
         "W":"Stops for watering of coaches",
         "X":"Passes another train at crossing point on single line"}
+
+    connection_indicator = {
+        "C":"Connections not allowed into this train.",
+        "S":"Connections not allowed out of this train.",
+        "X":"Connections not allowed at all."}
+
+    association_category = {
+        "JJ":"join",
+        "VV":"divide",
+        "NP":"next"}
+
+    assocation_date_ind = {
+        "S":"standard (same day)",
+        "N":"over-next-midnight",
+        "P":"over-previous-midnight"}
+
+    association_type = {
+        "P":"passenger use",
+        "O":"operating use only"}
