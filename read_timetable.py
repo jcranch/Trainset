@@ -3,7 +3,7 @@ Parses the National Rail CIF format
 """
 
 
-from datetime import date, datetime
+from datetime import date, datetime, time, timedelta
 from warnings import warn, filterwarnings
 
 from codes import Timetable, Misc
@@ -41,11 +41,41 @@ def date_ddmmyy(s):
     return date(y2k_coding(int(s[4:6])), int(s[2:4]), int(s[0:2]))
 
 def datetime_ddmmyyhhmm(s):
+    """
+    This is the single worst time encoding I have ever worked with.
+    """
     return datetime(y2k_coding(int(s[4:6])), int(s[2:4]), int(s[0:2]), int(s[6:8]), int(s[8:10]))
 
 def date_yymmdd(s):
     return date(y2k_coding(int(s[0:2])), int(s[2:4]), int(s[4:6]))
 
+def time_hhmm(s):
+    return time(int(s[0:2]), int(s[2:4]))
+
+def time_hhmmx(s):
+    if s.strip() == "":
+        return None
+    elif s[4] == "H":
+        return time(int(s[0:2]), int(s[2:4]), 30)
+    else:
+        return time(int(s[0:2]), int(s[2:4]), 0)
+
+def timedelta_minh(s):
+    if s.strip() == "":
+        return None
+    elif s[1] == "H":
+        return timedelta(minutes = int(s[0].strip() or 0), seconds = 30)
+    else:
+        return timedelta(minutes = int(s.strip()))
+
+
+def parse_activities(s):
+    activities = [s[i:i+2].strip() for i in xrange(0,len(s),2)]
+    activities = [x for x in activities if x != ""]
+    for x in activities:
+        if x not in Timetable.train_activity:
+            warn("activity = %r"%(x,), UnrecognisedWarning)
+    return activities
 
 
 def linereader(expected_record_type):
@@ -69,6 +99,11 @@ def linereader(expected_record_type):
 
 
 class TimetableMachine():
+    """
+    A class parsing timetables. Intended to be subclassed to specify
+    the write methods (at the bottom), and begin() and end()
+    """
+
 
     def __init__(self):
 
@@ -95,22 +130,20 @@ class TimetableMachine():
         d["user_identity"] = l[7:13]
         d["user_date"] = date_yymmdd(l[16:22])
         d["extracted_time"] = datetime_ddmmyyhhmm(l[22:32])
-        d["current_reference"] = l[32:39].strip()
+        d["reference"] = l[32:39].strip()
         d["previous_reference"] = l[39:46].strip()
         d["full"] = (l[46] == 'F')
         d["version"] = l[47]
         d["extract_start"] = date_ddmmyy(l[48:54])
         d["extract_end"] = date_ddmmyy(l[54:60])
 
-        if self.header is not None:
-            warn("Two header fields: overwriting the first", WeirdBehaviour)
         self.header = d
 
 
     @linereader("BS")
     def read_BS(self):
         # Basic schedule
-        d = self.current_schedule = {}
+        d = self.schedule
         l = self.line
 
         d["type"] = self.transaction_types[l[2]]
@@ -192,7 +225,7 @@ class TimetableMachine():
 
     @linereader("BX")
     def read_BX(self):
-        d = self.current_schedule
+        d = self.schedule
         l = self.line
         
         uic_code = l[6:11].strip()
@@ -255,13 +288,67 @@ class TimetableMachine():
 
     @linereader("LO")
     def read_LO(self):
-        warn("Can't do LO yet",UnsupportedWarning)
+        a = self.location
+        l = self.line
 
+        a["type"] = "origin"
+        a["location"] = l[2:10].strip()
+        
+        scheduled_departure = time_hhmmx(l[10:15])
+        if scheduled_departure is not None:
+            a["scheduled_departure"] = scheduled_departure
+
+        a["public_departure"] = time_hhmm(l[15:19])
+        a["platform"] = l[19:22].strip()
+        a["line"] = l[22:25].strip()
+
+        engineering_allowance = timedelta_minh(l[25:27])
+        if engineering_allowance is not None:
+            a["engineering_allowance"] = engineering_allowance
+
+        pathing_allowance = timedelta_minh(l[27:29])
+        if pathing_allowance is not None:
+            a["pathing_allowance"] = pathing_allowance
+
+        activities = parse_activities(l[29:41])
+        if "TB" not in activities:
+            warn("TB is not in train activities", WeirdBehaviour)
+        a["train_activity"] = activities
+
+        performance_allowance = timedelta_minh(l[41:43])
+        if performance_allowance is not None:
+            a["performance_allowance"] = performance_allowance
+        
 
     @linereader("LI")
     def read_LI(self):
-        warn("Can't do LI yet",UnsupportedWarning)
+        a = self.location
+        l = self.line
 
+        a["type"] = "intermediate"
+        a["location"] = l[2:10].strip()
+        a["scheduled_arrival"] = time_hhmmx(l[10:15])
+        a["scheduled_departure"] = time_hhmmx(l[15:20])
+        a["scheduled_pass"] = time_hhmmx(l[20:25])
+        a["public_arrival"] = time_hhmm(l[25:29])
+        a["public_departure"] = time_hhmm(l[29:33])
+        a["platform"] = l[33:36].strip()
+        a["line"] = l[36:39].strip()
+        a["path"] = l[39:42].strip()
+        a["train_activity"] = parse_activities(l[42:54])
+        
+        engineering_allowance = timedelta_minh(l[54:56])
+        if engineering_allowance is not None:
+            a["engineering_allowance"] = engineering_allowance
+
+        pathing_allowance = timedelta_minh(l[56:58])
+        if pathing_allowance is not None:
+            a["pathing_allowance"] = pathing_allowance
+
+        performance_allowance = timedelta_minh(l[58:60])
+        if performance_allowance is not None:
+            a["performance_allowance"] = performance_allowance
+ 
 
     @linereader("LT")
     def read_LT(self):
@@ -281,18 +368,19 @@ class TimetableMachine():
 
     @linereader("EOF")
     def finish(self):
-        pass
+        self.end()
 
 
     def parse(self,filename):
         with open(filename,'r') as f:
+            self.begin()
+
             self.iterator = iter(f)
             self.nextline()
             self.header = None
-            self.schedules = []
-            self.current_schedule = {}
 
             self.read_HD()
+            self.write_header()
 
             while self.record_type == "TI":
                 self.read_TI()
@@ -307,32 +395,58 @@ class TimetableMachine():
                 self.read_AA()
 
             while self.record_type == "BS":
+                self.schedule = {}
+                self.locations = []
                 self.read_BS()
                 if self.record_type == "BX":
                     self.read_BX()
                 while self.record_type == "TN":
                     self.read_TN()
                 while self.record_type == "LO":
+                    self.location = {}
                     self.read_LO()
                     while self.record_type == "LN":
                         self.read_LN()
+                    self.locations.append(self.location)
                 while self.record_type == "CR" or self.record_type == "LI":
+                    self.location = {}
                     if self.record_type == "CR":
                         self.read_CR()
                     self.read_LI()
                     while self.record_type == "LN":
                         self.read_LN()
+                    self.locations.append(self.location)
                 while self.record_type == "LT":
+                    self.location = {}
                     self.read_LT()
                     while self.record_type == "LN":
                         self.read_LN()
-                self.schedules.append(self.current_schedule)
+                    self.locations.append(self.location)
+                self.schedule["locations"] = self.locations
+                self.write_schedule()
 
             self.read_ZZ()
             self.finish()
 
-            return {"header": self.header,
-                    "schedules": self.schedules}
+
+    def write_header(self):
+        "Stores self.header in the appropriate way"
+        pass
+
+
+    def write_schedule(self):
+        "Stores self.schedule in the appropriate way"
+        pass
+
+
+    def begin(self):
+        "Prepare for parsing run"
+        pass
+
+
+    def end(self):
+        "Tidy up after parsing run"
+        pass
 
 
 
