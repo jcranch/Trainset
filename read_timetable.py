@@ -304,14 +304,18 @@ class TimetableMachine():
         d["start_date"] = date_yymmdd(l[15:21])
         d["end_date"] = date_yymmdd(l[21:27])
         d["days"] = parse_days(l[27:34])
-        d["category"] = Timetable.assocation_category(l[34:36])
-        
-        date_ind = l[36]
-        if date_ind not in Timetable.assocation_date_ind:
-            warn("date_ind = %r"%(date_ind,),UnrecognisedWarning)
-        d["date_ind"] = date_ind
 
-        d["assocation_location"] = l[37:44].strip()
+        category = l[34:36].strip()
+        if category:
+            d["category"] = Timetable.association_category[category]
+        
+        date_ind = l[36].strip()
+        if date_ind:
+            d["date_ind"] = date_ind
+            if date_ind not in Timetable.association_date_ind:
+                warn("date_ind = %r"%(date_ind,),UnrecognisedWarning)
+
+        d["association_location"] = l[37:44].strip()
 
         base_suffix = l[44]
         if base_suffix not in [" ","2"]:
@@ -323,10 +327,11 @@ class TimetableMachine():
             warn("main_suffix = %r"%(main_suffix,),UnrecognisedWarning)
         d["main_suffix"] = main_suffix
         
-        association_type = l[47]
-        if association_type not in Timetable.association_types:
-            warn("association_type = %r"%(association_type,),UnrecognisedWarning)
-        d["association_type"] = association_type
+        association_type = l[47].strip()
+        if association_type:
+            d["association_type"] = association_type
+            if association_type not in Timetable.association_type:
+                warn("association_type = %r"%(association_type,),UnrecognisedWarning)
 
         stp_indicator = l[79]
         if stp_indicator not in Timetable.stp_indicator:
@@ -405,11 +410,11 @@ class TimetableMachine():
 
     @linereader("CR")
     def read_CR(self):
-        a = self.location
+        d = self.location
         l = self.line
 
-        a["type"] = "change"
-        a["location"] = l[2:10].strip()
+        d["type"] = "change"
+        d["location"] = l[2:10].strip()
 
         category = l[10:12].strip()
         if category:
@@ -546,7 +551,7 @@ class TimetableMachine():
                 self.read_TD()
 
             while self.record_type == "AA":
-                self.assocation = {}
+                self.association = {}
                 self.read_AA()
                 self.write_association
 

@@ -239,7 +239,7 @@ class Timetable():
         "VV":"divide",
         "NP":"next"}
 
-    assocation_date_ind = {
+    association_date_ind = {
         "S":"standard (same day)",
         "N":"over-next-midnight",
         "P":"over-previous-midnight"}
