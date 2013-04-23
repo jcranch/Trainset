@@ -280,17 +280,41 @@ class TimetableMachine():
 
     @linereader("TI")
     def read_TI(self):
-        warn("Can't do TI yet",UnsupportedWarning)
+        d = self.tiploc
+        l = self.line
+        d["type"] = "insert"
+        d["tiploc_code"] = l[2:9]
+        d["capitals"] = l[9:11].strip()
+        d["nalco"] = l[11:17].strip()
+        d["nlc_check"] = l[17]
+        d["tps_description"] = l[18:44].strip()
+        d["po_mcp_code"] = l[49:53].strip()
+        d["crs_code"] = l[53:56]
+        d["description"] = l[56:72].strip()
 
 
     @linereader("TA")
     def read_TA(self):
-        warn("Can't do TA yet",UnsupportedWarning)
+        d = self.tiploc
+        l = self.line
+        d["type"] = "amend"
+        d["tiploc_code"] = l[2:9]
+        d["capitals"] = l[9:11].strip()
+        d["nalco"] = l[11:17].strip()
+        d["nlc_check"] = l[17]
+        d["tps_description"] = l[18:44].strip()
+        d["po_mcp_code"] = l[49:53].strip()
+        d["crs_code"] = l[53:56]
+        d["description"] = l[56:72].strip()
+        d["new_tiploc_code"] = l[72:79]
 
 
     @linereader("TD")
     def read_TD(self):
-        warn("Can't do TD yet",UnsupportedWarning)
+        d = self.tiploc
+        l = self.line
+        d["type"] = "delete"
+        d["tiploc_code"] = l[2:9]
 
 
     @linereader("AA")
@@ -542,13 +566,19 @@ class TimetableMachine():
             self.write_header()
 
             while self.record_type == "TI":
+                self.tiploc = {}
                 self.read_TI()
+                self.write_tiploc()
 
             while self.record_type == "TA":
+                self.tiploc = {}
                 self.read_TA()
+                self.write_tiploc()
 
             while self.record_type == "TD":
+                self.tiploc = {}
                 self.read_TD()
+                self.write_tiploc()
 
             while self.record_type == "AA":
                 self.association = {}
@@ -600,6 +630,10 @@ class TimetableMachine():
     def write_schedule(self):
         "Stores self.schedule in the appropriate way"
         pass
+
+
+    def write_tiploc(self):
+        "Stores self.tiploc in the appropriate way"
 
 
     def write_association(self):
