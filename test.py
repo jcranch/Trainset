@@ -6,6 +6,7 @@ import os
 import sys
 from warnings import warn
 
+from base import *
 from read_schedules import *
 from read_fixed_links import *
 from read_additional_links import *
@@ -83,11 +84,17 @@ if __name__=="__main__":
         to_do.discard("links")
         to_do.update(["fixed_links", "additional_links"])
 
-    if "fixed_links" in to_do:
-        test_fixed_links()
+    ws = [("once", ".*", UnsupportedWarning),
+          ("once", ".*", UnrecognisedWarning),
+          ("once", ".*", WeirdBehaviour)]
 
-    if "additional_links" in to_do:
-        test_additional_links()
+    with WarningFilter(ws):
 
-    if "schedules" in to_do:
-        test_schedules()
+        if "fixed_links" in to_do:
+            test_fixed_links()
+            
+        if "additional_links" in to_do:
+            test_additional_links()
+
+        if "schedules" in to_do:
+            test_schedules()

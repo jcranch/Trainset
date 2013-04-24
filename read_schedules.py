@@ -18,26 +18,10 @@ Parses the National Rail CIF format
 
 
 from datetime import date, datetime, time, timedelta
-from warnings import warn, filterwarnings
+from warnings import warn
 
+from base import *
 from codes import Schedule, Misc
-
-
-
-class CIF_Warning(Warning):
-    """
-    Base class for warnings related to the CIF format.
-    """
-    pass
-
-class UnrecognisedWarning(CIF_Warning):
-    pass
-
-class UnsupportedWarning(CIF_Warning):
-    pass
-
-class WeirdBehaviour(CIF_Warning):
-    pass
 
 
 
@@ -622,24 +606,7 @@ class ScheduleMachine():
         self.end()
 
 
-    def parse(self,filename,
-              behaviour_on_unsupported_data = "once",
-              behaviour_on_unrecognised_data = "once",
-              behaviour_on_weird_behaviour = "error"):
-
-        """
-        The arguments "behaviour_on_X" take values suitable for warning
-        filters: typically, here, "once", "error" or "ignore".
-        """
-
-        filterwarnings(behaviour_on_unsupported_data, ".*", UnsupportedWarning)
-        filterwarnings(behaviour_on_unrecognised_data, ".*", UnrecognisedWarning)
-        filterwarnings(behaviour_on_weird_behaviour, ".*", WeirdBehaviour)
-
-        self.parse_with_warnings(filename)
-
-
-    def parse_with_warnings(self,filename):
+    def parse(self,filename):
 
         with open(filename,'r') as f:
             self.begin()
