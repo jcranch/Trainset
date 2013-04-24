@@ -7,6 +7,17 @@ import sys
 from warnings import warn
 
 from read_schedules import *
+from read_fixed_links import *
+from read_additional_links import *
+
+
+
+def files_of_extension(e):
+    n = len(e) + 1
+    for (d,_,l) in os.walk("../traindata"):
+        for f in l:
+            if f[-4:]=="."+e:
+                yield os.path.join(d,f)
 
 
 
@@ -36,20 +47,47 @@ class TestScheduleMachine(ScheduleMachine):
         self.dictcheck("association", self.association)
 
 def test_schedules():
-    for (d,_,l) in os.walk("../traindata"):
-        for f in l:
-            if f[-4:]==".MCA":
-                print
-                print "%s:"%(f,)
-                TestScheduleMachine().parse(os.path.join(d,f))
+    for f in files_of_extension("MCA"):
+        print
+        print "%s:"%(f,)
+        TestScheduleMachine().parse(f)
+
+
+
+def test_fixed_links():
+    for f in files_of_extension("FLF"):
+        print
+        print "%s:"%(f,)
+        read_flf(f)
+
+
+def test_additional_links():
+    for f in files_of_extension("ALF"):
+        print
+        print "%s:"%(f,)
+        read_alf(f)
+
 
 
 
 if __name__=="__main__":
 
-    everything = ["schedules"]
-    to_do = sys.argv[1:] or everything
+    everything = set(["schedules", "links"])
 
-    for task in to_do:
-        if task == "schedules":
-            test_schedules()
+    if len(sys.argv) > 1:
+        to_do = set(sys.argv[1:])
+    else:
+        to_do = everything
+
+    if "links" in to_do:
+        to_do.discard("links")
+        to_do.update(["fixed_links", "additional_links"])
+
+    if "fixed_links" in to_do:
+        test_fixed_links()
+
+    if "additional_links" in to_do:
+        test_additional_links()
+
+    if "schedules" in to_do:
+        test_schedules()

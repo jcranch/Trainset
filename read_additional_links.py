@@ -16,20 +16,17 @@ def read_alf_generator(filename):
         for l in f:
             a = dict(p.split("=") for p in l.split(","))
             d = {}
-            d["Mode"] = a["M"]
-            d["Origin"] = a["O"]
-            d["Destination"] = a["D"]
-            d["Duration"] = int(a["T"])
-            d["Start Time"] = time(int(a["S"][:2]), int(a["S"][2:]))
-            d["End Time"] = time(int(a["E"][:2]), int(a["E"][2:]))
-            d["Priority"] = int(a["P"])
+            d["mode"] = a["M"]
+            d["origin"] = a["O"]
+            d["destination"] = a["D"]
+            d["duration"] = int(a["T"])
+            d["start time"] = time(int(a["S"][:2]), int(a["S"][2:]))
+            d["end time"] = time(int(a["E"][:2]), int(a["E"][2:]))
+            d["priority"] = int(a["P"])
             if "F" in a:
-                d["Start Date"] = date_dd_mm_yyyy(a["F"])
+                d["start date"] = date_dd_mm_yyyy(a["F"])
             if "U" in a:
-                d["End Date"] = date_dd_mm_yyyy(a["U"])
+                d["end date"] = date_dd_mm_yyyy(a["U"])
             if "R" in a:
-                d["Days"] = dict(zip(Misc.days, (c=='1' for c in a["R"])))
+                d["days"] = dict(zip(Misc.days, (c=='1' for c in a["R"])))
             yield d
-
-if __name__ == "__main__":
-    print list(read_alf('../traindata/trains-043/TTISF043.ALF'))
