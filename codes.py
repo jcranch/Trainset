@@ -108,7 +108,14 @@ class Schedule():
         "HST" : "High Speed Train",
         "LDS" : "Diesel Shunting Locomotive"}
 
-    #timing_load
+    dmu_timing_load = {
+        "A": "Class 14x series 2-axle",
+        "E": "Class 158",
+        "N": "Class 165/0",
+        "S": "Class 150, 153, 155 or 156",
+        "T": "Class 165/1 or 166",
+        "V": "Virgin Voyager Class 220/221",
+        "X": "Class 159"}
 
     operating_chars = {
         "B" : "Vacuum Braked",

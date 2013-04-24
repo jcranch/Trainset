@@ -96,6 +96,26 @@ def parse_activities(s):
     return activities
 
 
+def parse_timing_load(pt,s):
+    "Takes a power type and a timing load"
+    if pt == "DMU":
+        if s in Schedule.dmu_timing_load:
+            return Schedule.dmu_timing_load[s]
+        elif s in set(["D1","D2","D3","D4","D1T"]):
+            return s
+    elif pt == "EMU":
+        if s == "AT":
+            return "Accelerated Timing"
+        elif s.isdigit():
+            return "EMU, type "+s
+    elif pt in set(["D","E","ED"]):
+        if s.isdigit():
+            n = int(s)
+            if n < 1000 or (n < 10000 and pt == "ED"):
+                return s + " tonnes"
+    return None
+
+
 def linereader(expected_record_type):
     """
     Decorator for safely reading lines.
@@ -212,7 +232,9 @@ class ScheduleMachine():
 
         timing_load = l[53:57].strip()
         if timing_load:
-            d["timing_load"] = timing_load # should validate this
+            if parse_timing_load(power_type, timing_load) is None:
+                warn("timing_load = %r (with power_type = %r)", (timing_load, power_type), UnrecognisedWarning)
+            d["timing_load"] = timing_load
 
         d["speed"] = int(l[57:60].strip() or 0)
 
@@ -500,7 +522,9 @@ class ScheduleMachine():
 
         timing_load = l[33:37].strip()
         if timing_load:
-            d["timing_load"] = timing_load # should validate this
+            if parse_timing_load(power_type, timing_load) is None:
+                warn("timing_load = %r (with power_type = %r)", (timing_load, power_type), UnrecognisedWarning)
+            d["timing_load"] = timing_load
 
         d["speed"] = int(l[37:40].strip() or 0)
 
