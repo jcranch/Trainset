@@ -12,7 +12,7 @@ class CATE():
              '9': "Subsidiary TIPLOC" }
 
 
-class Timetable():
+class Schedule():
 
     # bank holiday restrictions
     bhx = {"X" : "Does not run on specified Bank Holiday Mondays",

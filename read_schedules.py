@@ -3,6 +3,8 @@ Parses the National Rail CIF format
 """
 
 # TODO:
+#  - Look up the documentation for warnings, and remove the filters
+#    after we've used them.
 #  - See if the test run produces any empty or null fields (we should
 #    strip them out).
 #  - Investigate the semantics more thoroughly: particular Changes en
@@ -10,7 +12,7 @@ Parses the National Rail CIF format
 #    before/after them, it may well make sense to parse the data
 #    differently. Also, should associations associate things that are
 #    already known?
-#  - Write some sensible subclasses of TimetableMachine, to place data
+#  - Write some sensible subclasses of ScheduleMachine, to place data
 #    in databases, etc.
 
 
@@ -18,7 +20,7 @@ Parses the National Rail CIF format
 from datetime import date, datetime, time, timedelta
 from warnings import warn, filterwarnings
 
-from codes import Timetable, Misc
+from codes import Schedule, Misc
 
 
 
@@ -89,7 +91,7 @@ def parse_activities(s):
     activities = [s[i:i+2].strip() for i in xrange(0,len(s),2)]
     activities = [x for x in activities if x != ""]
     for x in activities:
-        if x not in Timetable.train_activity:
+        if x not in Schedule.train_activity:
             warn("activity = %r"%(x,), UnrecognisedWarning)
     return activities
 
@@ -114,9 +116,9 @@ def linereader(expected_record_type):
 
 
 
-class TimetableMachine():
+class ScheduleMachine():
     """
-    A class parsing timetables. Intended to be subclassed to specify
+    A class parsing schedules. Intended to be subclassed to specify
     the write methods (at the bottom), and begin() and end()
     """
 
@@ -175,19 +177,19 @@ class TimetableMachine():
         bhx = l[28].strip()
         if bhx:
             d["bank_holiday_running"] = bhx
-            if bhx not in Timetable.bhx:
+            if bhx not in Schedule.bhx:
                 warn("bank holiday running code = %r"%(bhx,),UnrecognisedWarning)
 
         status = l[29].strip()
         if status:
             d["train_status"] = status
-            if status not in Timetable.status:
+            if status not in Schedule.status:
                 warn("status = %r"%(status,),UnrecognisedWarning)
 
         category = l[30:32].strip()
         if category:
             d["category"] = category
-            if category not in Timetable.category:
+            if category not in Schedule.category:
                 warn("category = %r"%(category,),UnrecognisedWarning)
 
         d["train_identity"] = l[32:36].strip()
@@ -198,7 +200,7 @@ class TimetableMachine():
         power_type = l[50:53].strip()
         if power_type:
             d["power_type"] = power_type
-            if power_type not in Timetable.power_type:
+            if power_type not in Schedule.power_type:
                 warn("power_type = %r"%(power_type,),UnrecognisedWarning)
         d["timing_load"] = l[53:57].strip() # should validate this
 
@@ -207,39 +209,39 @@ class TimetableMachine():
         operating_chars = list(l[60:66].strip())
         d["operating_chars"] = operating_chars
         for c in operating_chars:
-            if c not in Timetable.operating_chars:
+            if c not in Schedule.operating_chars:
                 warn("operating_chars has %r"%(c,),UnrecognisedWarning)
 
         train_class = l[66].strip() or "B"
         d["train_class"] = train_class
-        if train_class not in Timetable.train_class:
+        if train_class not in Schedule.train_class:
             warn("train_class = %r"%(train_class,),UnrecognisedWarning)  
         sleepers = l[67].strip()
         if sleepers:
             d["sleepers"] = sleepers
-            if sleepers not in Timetable.sleepers:
+            if sleepers not in Schedule.sleepers:
                 warn("sleepers = %r"%(sleepers,),UnrecognisedWarning)
 
         reservations = l[68].strip()
         if reservations:
             d["reservations"] = reservations
-            if reservations not in Timetable.reservations:
+            if reservations not in Schedule.reservations:
                 warn("reservations = %r"%(sleepers,),UnrecognisedWarning)
 
         catering = list(l[69:73].strip())
         d["catering"] = catering
         for c in catering:
-            if c not in Timetable.catering:
+            if c not in Schedule.catering:
                 warn("catering has %r"%(c,),UnrecognisedWarning)
 
         service_branding = list(l[73:77].strip())
         d["service_branding"] = service_branding
         for c in service_branding:
-            if c not in Timetable.service_branding:
+            if c not in Schedule.service_branding:
                 warn("service_branding has %r"%(c,),UnrecognisedWarning)
 
         stp_indicator = l[79].strip()
-        if stp_indicator not in Timetable.stp_indicator:
+        if stp_indicator not in Schedule.stp_indicator:
             warn("stp_indicator = %r"%(stp_indicator,),UnrecognisedWarning)
         d["stp_indicator"] = stp_indicator
 
@@ -256,7 +258,7 @@ class TimetableMachine():
         atoc_code = l[11:13].strip()
         if atoc_code:
             d["atoc_code"] = atoc_code
-            if atoc_code not in Timetable.atoc_code:
+            if atoc_code not in Schedule.atoc_code:
                 warn("atoc_code = %r"%(atoc_code,), UnrecognisedWarning)
 
         atc = l[13].strip()
@@ -330,12 +332,12 @@ class TimetableMachine():
 
         category = l[34:36].strip()
         if category:
-            d["category"] = Timetable.association_category[category]
+            d["category"] = Schedule.association_category[category]
         
         date_ind = l[36].strip()
         if date_ind:
             d["date_ind"] = date_ind
-            if date_ind not in Timetable.association_date_ind:
+            if date_ind not in Schedule.association_date_ind:
                 warn("date_ind = %r"%(date_ind,),UnrecognisedWarning)
 
         d["association_location"] = l[37:44].strip()
@@ -353,11 +355,11 @@ class TimetableMachine():
         association_type = l[47].strip()
         if association_type:
             d["association_type"] = association_type
-            if association_type not in Timetable.association_type:
+            if association_type not in Schedule.association_type:
                 warn("association_type = %r"%(association_type,),UnrecognisedWarning)
 
         stp_indicator = l[79]
-        if stp_indicator not in Timetable.stp_indicator:
+        if stp_indicator not in Schedule.stp_indicator:
             warn("stp_indicator = %r"%(stp_indicator,),UnrecognisedWarning)
         d["stp_indicator"] = stp_indicator
 
@@ -453,7 +455,7 @@ class TimetableMachine():
         category = l[10:12].strip()
         if category:
             d["category"] = category
-            if category not in Timetable.category:
+            if category not in Schedule.category:
                 warn("category = %r"%(category,),UnrecognisedWarning)
 
         identity = l[12:16].strip()
@@ -475,50 +477,53 @@ class TimetableMachine():
         power_type = l[30:33].strip()
         if power_type:
             d["power_type"] = power_type
-            if power_type not in Timetable.power_type:
+            if power_type not in Schedule.power_type:
                 warn("power_type = %r"%(power_type,),UnrecognisedWarning)
-        d["timing_load"] = l[33:37].strip() # should validate this
+
+        timing_load = l[33:37].strip()
+        if timing_load:
+            d["timing_load"] = timing_load # should validate this
 
         d["speed"] = int(l[37:40].strip() or 0)
 
         operating_chars = list(l[40:46].strip())
         d["operating_chars"] = operating_chars
         for c in operating_chars:
-            if c not in Timetable.operating_chars:
+            if c not in Schedule.operating_chars:
                 warn("operating_chars has %r"%(c,),UnrecognisedWarning)
 
         train_class = l[46].strip() or "B"
         d["train_class"] = train_class
-        if train_class not in Timetable.train_class:
+        if train_class not in Schedule.train_class:
             warn("train_class = %r"%(train_class,),UnrecognisedWarning)  
         sleepers = l[47].strip()
         if sleepers:
             d["sleepers"] = sleepers
-            if sleepers not in Timetable.sleepers:
+            if sleepers not in Schedule.sleepers:
                 warn("sleepers = %r"%(sleepers,),UnrecognisedWarning)
 
         reservations = l[48].strip()
         if reservations:
             d["reservations"] = reservations
-            if reservations not in Timetable.reservations:
+            if reservations not in Schedule.reservations:
                 warn("reservations = %r"%(sleepers,),UnrecognisedWarning)
 
         connection_indicator = l[49].strip()
         if connection_indicator:
             d["connection_indicator"] = connection_indicator
-            if connection_indicator not in Timetable.connection_indicator:
+            if connection_indicator not in Schedule.connection_indicator:
                 warn("connection_indicator = %r"%(connection_indicator,),UnrecognisedWarning)
 
         catering = list(l[50:54].strip())
         d["catering"] = catering
         for c in catering:
-            if c not in Timetable.catering:
+            if c not in Schedule.catering:
                 warn("catering has %r"%(c,),UnrecognisedWarning)
         
         service_branding = list(l[54:58].strip())
         d["service_branding"] = service_branding
         for c in service_branding:
-            if c not in Timetable.service_branding:
+            if c not in Schedule.service_branding:
                 warn("service_branding has %r"%(c,),UnrecognisedWarning)
 
         uic_code = l[62:67].strip()
@@ -575,7 +580,25 @@ class TimetableMachine():
         self.end()
 
 
-    def parse(self,filename):
+    def parse(self,filename,
+              behaviour_on_unsupported_data = "once",
+              behaviour_on_unrecognised_data = "once",
+              behaviour_on_weird_behaviour = "error"):
+
+        """
+        The arguments "behaviour_on_X" take values suitable for warning
+        filters: typically, here, "once", "error" or "ignore".
+        """
+
+        filterwarnings(behaviour_on_unsupported_data, ".*", UnsupportedWarning)
+        filterwarnings(behaviour_on_unrecognised_data, ".*", UnrecognisedWarning)
+        filterwarnings(behaviour_on_weird_behaviour, ".*", WeirdBehaviour)
+
+        self.parse_with_warnings(filename)
+
+
+    def parse_with_warnings(self,filename):
+
         with open(filename,'r') as f:
             self.begin()
 
@@ -655,6 +678,7 @@ class TimetableMachine():
 
     def write_tiploc(self):
         "Stores self.tiploc in the appropriate way"
+        pass
 
 
     def write_association(self):
@@ -671,21 +695,3 @@ class TimetableMachine():
         "Tidy up after parsing run"
         pass
 
-
-
-def parse_timetable(filename, behaviour_on_unsupported_data = "once", behaviour_on_unrecognised_data = "once", behaviour_on_weird_behaviour = "error"):
-    """
-    The two arguments "behaviour_on_X_data" take values suitable for
-    warning filters: typically, here, "once", "error" or "ignore".
-    """
-
-    filterwarnings(behaviour_on_unsupported_data, ".*", UnsupportedWarning)
-    filterwarnings(behaviour_on_unrecognised_data, ".*", UnrecognisedWarning)
-    filterwarnings(behaviour_on_weird_behaviour, ".*", WeirdBehaviour)
-
-    TimetableMachine().parse(filename)
-
-
-
-if __name__=="__main__":
-    parse_timetable("../traindata/trains-043/TTISF043.MCA")
