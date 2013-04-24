@@ -3,7 +3,6 @@ Parses the National Rail CIF format
 """
 
 # TODO:
-#  - Complete
 #  - See if the test run produces any empty or null fields (we should
 #    strip them out).
 #  - Investigate the semantics more thoroughly: particular Changes en
@@ -365,7 +364,18 @@ class TimetableMachine():
 
     @linereader("TN")
     def read_TN(self):
-        warn("Records of type TN are as yet undefined",UnsupportedWarning)
+        d = self.schedule
+        l = self.line
+        if "notes" not in d:
+            notes = {}
+            d["notes"] = notes
+        else:
+            notes = d["notes"]
+
+        note_type = l[2].strip()
+        if note_type not in notes:
+            notes[note_type] = ""
+        notes[note_type] = (notes[note_type] + "\n" + l[3:80]).strip()
 
 
     @linereader("LO")
@@ -540,7 +550,18 @@ class TimetableMachine():
 
     @linereader("LN")
     def read_LN(self):
-        warn("Records of type LN are as yet undefined",UnsupportedWarning)
+        d = self.location
+        l = self.line
+        if "notes" not in d:
+            notes = {}
+            d["notes"] = notes
+        else:
+            notes = d["notes"]
+
+        note_type = l[2].strip()
+        if note_type not in notes:
+            notes[note_type] = ""
+        notes[note_type] = (notes[note_type] + "\n" + l[3:80]).strip()
 
 
     @linereader("ZZ")
