@@ -149,7 +149,11 @@ class ScheduleMachine():
         d["user_date"] = date_yymmdd(l[16:22])
         d["extracted_time"] = datetime_ddmmyyhhmm(l[22:32])
         d["reference"] = l[32:39].strip()
-        d["previous_reference"] = l[39:46].strip()
+
+        previous_reference = l[39:46].strip()
+        if previous_reference:
+            d["previous_reference"] = previous_reference
+
         d["full"] = (l[46] == 'F')
         d["version"] = l[47]
         d["extract_start"] = date_ddmmyy(l[48:54])
@@ -192,7 +196,10 @@ class ScheduleMachine():
             if category not in Schedule.category:
                 warn("category = %r"%(category,),UnrecognisedWarning)
 
-        d["train_identity"] = l[32:36].strip()
+        train_identity = l[32:36].strip()
+        if train_identity:
+            d["train_identity"] = train_identity
+
         d["headcode"] = l[36:40]
         d["train_service_code"] = l[41:49]
         d["portion_id"] = l[49]
@@ -202,7 +209,10 @@ class ScheduleMachine():
             d["power_type"] = power_type
             if power_type not in Schedule.power_type:
                 warn("power_type = %r"%(power_type,),UnrecognisedWarning)
-        d["timing_load"] = l[53:57].strip() # should validate this
+
+        timing_load = l[53:57].strip()
+        if timing_load:
+            d["timing_load"] = timing_load # should validate this
 
         d["speed"] = int(l[57:60].strip() or 0)
 
@@ -283,15 +293,23 @@ class ScheduleMachine():
     def read_TI(self):
         d = self.tiploc
         l = self.line
+
         d["type"] = "insert"
         d["tiploc_code"] = l[2:9]
         d["capitals"] = l[9:11].strip()
         d["nalco"] = l[11:17].strip()
         d["nlc_check"] = l[17]
-        d["tps_description"] = l[18:44].strip()
+
+        tps_description = l[18:44].strip()
+        if tps_description:
+            d["tps_description"] = tps_description
+
         d["po_mcp_code"] = l[49:53].strip()
         d["crs_code"] = l[53:56]
-        d["description"] = l[56:72].strip()
+
+        description = l[56:72].strip()
+        if description:
+            d["description"] = description
 
 
     @linereader("TA")
