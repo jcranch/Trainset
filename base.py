@@ -38,6 +38,6 @@ class WarningFilter():
         for f in self.filters:
             filterwarnings(*f)
 
-    def __exit__(self):
+    def __exit__(self,etype,evalue,etraceback):
         resetwarnings()
         return False
