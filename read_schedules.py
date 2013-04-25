@@ -3,10 +3,6 @@ Parses the National Rail CIF format
 """
 
 # TODO:
-#  - Look up the documentation for warnings, and remove the filters
-#    after we've used them.
-#  - See if the test run produces any empty or null fields (we should
-#    strip them out).
 #  - Investigate the semantics more thoroughly: particular Changes en
 #    Route. If these bear fixed resemblance to the locations
 #    before/after them, it may well make sense to parse the data
@@ -126,13 +122,9 @@ class ScheduleMachine():
     the write methods (at the bottom), and begin() and end()
     """
 
-
-    def __init__(self):
-
-        self.transaction_types = {"N": "new",
-                                  "D": "delete",
-                                  "R": "revise"}
-
+    transaction_types = {"N": "new",
+                         "D": "delete",
+                         "R": "revise"}
 
     def nextline(self):
         try:
@@ -150,8 +142,15 @@ class ScheduleMachine():
         l = self.line
 
         d["user_identity"] = l[7:13]
-        d["user_date"] = date_yymmdd(l[16:22])
-        d["extracted_time"] = datetime_ddmmyyhhmm(l[22:32])
+
+        s = l[16:22].strip()
+        if s:
+            d["user_date"] = date_yymmdd(s)
+
+        s = l[22:32].strip()
+        if s:
+            d["extracted_time"] = datetime_ddmmyyhhmm(s)
+
         d["reference"] = l[32:39].strip()
 
         previous_reference = l[39:46].strip()
@@ -160,8 +159,14 @@ class ScheduleMachine():
 
         d["full"] = (l[46] == 'F')
         d["version"] = l[47]
-        d["extract_start"] = date_ddmmyy(l[48:54])
-        d["extract_end"] = date_ddmmyy(l[54:60])
+
+        s = l[48:54].strip()
+        if s:
+            d["extract_start"] = date_ddmmyy(s)
+
+        s = l[54:60].strip()
+        if s:
+            d["extract_end"] = date_ddmmyy(s)
 
         self.header = d
 
@@ -282,7 +287,7 @@ class ScheduleMachine():
             d["applicable_timetable"] = True
         elif atc == "N":
             d["applicable_timetable"] = False
-        else:
+        elif atc != "":
             warn("atc = %r"%(atc,), UnrecognisedWarning)
             d["applicable_timetable"] = atc
 

@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 Test suite.
 """
@@ -19,6 +20,22 @@ def files_of_extension(e):
         for f in l:
             if f[-4:]=="."+e:
                 yield os.path.join(d,f)
+
+
+
+def got(s,x):
+    t = x in s
+    if t:
+        s.discard(x)
+    return t
+
+
+
+def do_all(e,f):
+    for x in files_of_extension(e):
+        print
+        print x + ":"
+        f(x)
 
 
 
@@ -55,19 +72,11 @@ def test_schedules():
 
 
 
-def test_fixed_links():
-    for f in files_of_extension("FLF"):
-        print
-        print "%s:"%(f,)
-        read_flf(f)
-
-
 def test_additional_links():
     for f in files_of_extension("ALF"):
         print
         print "%s:"%(f,)
         read_alf(f)
-
 
 
 
@@ -80,9 +89,11 @@ if __name__=="__main__":
     else:
         to_do = everything
 
-    if "links" in to_do:
-        to_do.discard("links")
+    if got(to_do,"links"):
         to_do.update(["fixed_links", "additional_links"])
+
+    if got(to_do, "schedules"):
+        to_do.update(["full_schedules", "update_schedules", "manual_schedules"])
 
     ws = [("once", ".*", UnsupportedWarning),
           ("once", ".*", UnrecognisedWarning),
@@ -90,11 +101,20 @@ if __name__=="__main__":
 
     with WarningFilter(ws):
 
-        if "fixed_links" in to_do:
-            test_fixed_links()
+        if got(to_do,"fixed_links"):
+            do_all("FLF", read_flf)
             
-        if "additional_links" in to_do:
-            test_additional_links()
+        if got(to_do,"additional_links"):
+            do_all("ALF", read_alf)
 
-        if "schedules" in to_do:
-            test_schedules()
+        if got(to_do,"full_schedules"):
+            do_all("MCA", TestScheduleMachine().parse)
+
+        if got(to_do,"update_schedules"):
+            do_all("CFA", TestScheduleMachine().parse)
+
+        if got(to_do,"manual_schedules"):
+            do_all("ZTR", TestScheduleMachine().parse)
+
+    if len(to_do) > 0:
+        print "Unused tasks: %s"%(", ".join(to_do),)
