@@ -14,6 +14,10 @@ class CATE():
 
 class Schedule():
 
+    transaction_types = {"N": "new",
+                         "D": "delete",
+                         "R": "revise"}
+
     # bank holiday restrictions
     bhx = {"X" : "Does not run on specified Bank Holiday Mondays",
            "E" : "Does not run on specified Edinburgh Holiday dates", # no longer used

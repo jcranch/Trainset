@@ -2,16 +2,6 @@
 Parses the National Rail CIF format
 """
 
-# TODO:
-#  - Investigate the semantics more thoroughly: particular Changes en
-#    Route. If these bear fixed resemblance to the locations
-#    before/after them, it may well make sense to parse the data
-#    differently. Also, should associations associate things that are
-#    already known?
-#  - Write some sensible subclasses of ScheduleMachine, to place data
-#    in databases, etc.
-
-
 
 from datetime import date, datetime, time, timedelta
 from warnings import warn
@@ -19,6 +9,10 @@ from warnings import warn
 from base import *
 from codes import Schedule, Misc
 
+
+
+def all_in(l):
+    return lambda x: all(c in l for c in x)
 
 
 def y2k_coding(n):
@@ -41,24 +35,23 @@ def datetime_ddmmyyhhmm(s):
     return datetime(y2k_coding(int(s[4:6])), int(s[2:4]), int(s[0:2]), int(s[6:8]), int(s[8:10]))
 
 def date_yymmdd(s):
-    return date(y2k_coding(int(s[0:2])), int(s[2:4]), int(s[4:6]))
+    if s == "999999":
+        return None # a standard null format
+    else:
+        return date(y2k_coding(int(s[0:2])), int(s[2:4]), int(s[4:6]))
 
 def time_hhmm(s):
     return time(int(s[0:2]), int(s[2:4]))
 
 def time_hhmmx(s):
-    if s.strip() == "":
-        return None
-    elif s[4] == "H":
+    if s[-1] == "H":
         return time(int(s[0:2]), int(s[2:4]), 30)
     else:
         return time(int(s[0:2]), int(s[2:4]), 0)
 
 def timedelta_minh(s):
-    if s.strip() == "":
-        return None
-    elif s[1] == "H":
-        return timedelta(minutes = int(s[0].strip() or 0), seconds = 30)
+    if s[-1] == "H":
+        return timedelta(minutes = int(s[:-1].strip() or 0), seconds = 30)
     else:
         return timedelta(minutes = int(s.strip()))
 
@@ -96,6 +89,15 @@ def parse_timing_load(pt,s):
     return None
 
 
+def YN_to_bool(c):
+    if c == "Y":
+        return True
+    elif c == "N":
+        return False
+    else:
+        raise IncoherentData
+
+
 def linereader(expected_record_type):
     """
     Decorator for safely reading lines.
@@ -122,10 +124,6 @@ class ScheduleMachine():
     the write methods (at the bottom), and begin() and end()
     """
 
-    transaction_types = {"N": "new",
-                         "D": "delete",
-                         "R": "revise"}
-
     def nextline(self):
         try:
             self.line = next(self.iterator)
@@ -138,37 +136,18 @@ class ScheduleMachine():
     @linereader("HD")
     def read_HD(self):
         # Header
-        d = {}
+        d = self.header
         l = self.line
 
-        d["user_identity"] = l[7:13]
-
-        s = l[16:22].strip()
-        if s:
-            d["user_date"] = date_yymmdd(s)
-
-        s = l[22:32].strip()
-        if s:
-            d["extracted_time"] = datetime_ddmmyyhhmm(s)
-
-        d["reference"] = l[32:39].strip()
-
-        previous_reference = l[39:46].strip()
-        if previous_reference:
-            d["previous_reference"] = previous_reference
-
+        data(d, "user_identity", l[7:13])
+        data(d, "user_date", l[16:22], fn=date_yymmdd)
+        data(d, "extracted_time", l[22:32], fn=datetime_ddmmyyhhmm)
+        data(d, "reference", l[32:39])
+        data(d, "previous_reference", l[39:46])
         d["full"] = (l[46] == 'F')
-        d["version"] = l[47]
-
-        s = l[48:54].strip()
-        if s:
-            d["extract_start"] = date_ddmmyy(s)
-
-        s = l[54:60].strip()
-        if s:
-            d["extract_end"] = date_ddmmyy(s)
-
-        self.header = d
+        data(d, "version", l[47])
+        data(d, "extract_start", l[48:54], fn=date_ddmmyy)
+        data(d, "extract_end", l[54:60], fn=date_ddmmyy)
 
 
     @linereader("BS")
@@ -177,127 +156,40 @@ class ScheduleMachine():
         d = self.schedule
         l = self.line
 
-        d["type"] = self.transaction_types[l[2]]
-        d["uid"] = l[3:9]
-        d["date_runs_from"] = date_yymmdd(l[9:15])
-        if l[15:21] == "999999":
-            d["date_runs_to"] = None
-        else:
-            d["date_runs_to"] = date_yymmdd(l[15:21])
-
-        d["days_run"] = parse_days(l[21:28])
-
-        bhx = l[28].strip()
-        if bhx:
-            d["bank_holiday_running"] = bhx
-            if bhx not in Schedule.bhx:
-                warn("bank holiday running code = %r"%(bhx,),UnrecognisedWarning)
-
-        status = l[29].strip()
-        if status:
-            d["train_status"] = status
-            if status not in Schedule.status:
-                warn("status = %r"%(status,),UnrecognisedWarning)
-
-        category = l[30:32].strip()
-        if category:
-            d["category"] = category
-            if category not in Schedule.category:
-                warn("category = %r"%(category,),UnrecognisedWarning)
-
-        train_identity = l[32:36].strip()
-        if train_identity:
-            d["train_identity"] = train_identity
-
-        d["headcode"] = l[36:40]
-        d["train_service_code"] = l[41:49]
-        d["portion_id"] = l[49]
-
-        power_type = l[50:53].strip()
-        if power_type:
-            d["power_type"] = power_type
-            if power_type not in Schedule.power_type:
-                warn("power_type = %r"%(power_type,),UnrecognisedWarning)
-
-        timing_load = l[53:57].strip()
-        if timing_load:
-            if parse_timing_load(power_type, timing_load) is None:
-                warn("timing_load = %r (with power_type = %r)", (timing_load, power_type), UnrecognisedWarning)
-            d["timing_load"] = timing_load
-
-        d["speed"] = int(l[57:60].strip() or 0)
-
-        operating_chars = list(l[60:66].strip())
-        d["operating_chars"] = operating_chars
-        for c in operating_chars:
-            if c not in Schedule.operating_chars:
-                warn("operating_chars has %r"%(c,),UnrecognisedWarning)
-
-        train_class = l[66].strip() or "B"
-        d["train_class"] = train_class
-        if train_class not in Schedule.train_class:
-            warn("train_class = %r"%(train_class,),UnrecognisedWarning)  
-        sleepers = l[67].strip()
-        if sleepers:
-            d["sleepers"] = sleepers
-            if sleepers not in Schedule.sleepers:
-                warn("sleepers = %r"%(sleepers,),UnrecognisedWarning)
-
-        reservations = l[68].strip()
-        if reservations:
-            d["reservations"] = reservations
-            if reservations not in Schedule.reservations:
-                warn("reservations = %r"%(sleepers,),UnrecognisedWarning)
-
-        catering = list(l[69:73].strip())
-        d["catering"] = catering
-        for c in catering:
-            if c not in Schedule.catering:
-                warn("catering has %r"%(c,),UnrecognisedWarning)
-
-        service_branding = list(l[73:77].strip())
-        d["service_branding"] = service_branding
-        for c in service_branding:
-            if c not in Schedule.service_branding:
-                warn("service_branding has %r"%(c,),UnrecognisedWarning)
-
-        stp_indicator = l[79].strip()
-        if stp_indicator not in Schedule.stp_indicator:
-            warn("stp_indicator = %r"%(stp_indicator,),UnrecognisedWarning)
-        d["stp_indicator"] = stp_indicator
+        data(d, "type", l[2], test=Schedule.transaction_types)
+        data(d, "uid", l[3:9])
+        data(d, "date_runs_from", l[9:15], fn=date_yymmdd)
+        data(d, "date_runs_to", l[15:21], fn=date_yymmdd)
+        data(d, "days_run", l[21:28], fn=parse_days, strip=False)
+        data(d, "bank_holiday_running", l[28], test=Schedule.bhx)
+        data(d, "train_status", l[29], test=Schedule.status)
+        data(d, "category", l[30:32], test=Schedule.category)
+        data(d, "train_identity", l[32:36])
+        data(d, "headcode", l[36:40])
+        data(d, "train_service_code", l[41:49])
+        data(d, "portion_id", l[49])
+        data(d, "power_type", l[50:53], test=Schedule.power_type)
+        data(d, "timing_load", l[53:57], testfn = lambda x: parse_timing_load(d.get("power_type",None), x))
+        data(d, "speed", l[57:60], fn=int)
+        data(d, "operating_chars", l[60:66], testfn=all_in(Schedule.operating_chars))
+        data(d, "train_class", l[66], test=Schedule.train_class)
+        data(d, "sleepers", l[67], test=Schedule.sleepers)
+        data(d, "reservations", l[68], test=Schedule.reservations)
+        data(d, "catering", l[69:73], testfn=all_in(Schedule.catering))
+        data(d, "service_branding", l[73:77], testfn=all_in(Schedule.service_branding))
+        data(d, "stp_indicator", l[79], test=Schedule.stp_indicator)
 
 
     @linereader("BX")
     def read_BX(self):
         d = self.schedule
         l = self.line
-        
-        uic_code = l[6:11].strip()
-        if uic_code:
-            d["uic_code"] = uic_code
 
-        atoc_code = l[11:13].strip()
-        if atoc_code:
-            d["atoc_code"] = atoc_code
-            if atoc_code not in Schedule.atoc_code:
-                warn("atoc_code = %r"%(atoc_code,), UnrecognisedWarning)
-
-        atc = l[13].strip()
-        if atc == "Y":
-            d["applicable_timetable"] = True
-        elif atc == "N":
-            d["applicable_timetable"] = False
-        elif atc != "":
-            warn("atc = %r"%(atc,), UnrecognisedWarning)
-            d["applicable_timetable"] = atc
-
-        rsid = l[14:22].strip()
-        if rsid:
-            d["rsid"] = rsid
-
-        data_source = l[22].strip()
-        if data_source:
-            d["data_source"] = data_source
+        data(d, "uic_code", l[6:11])
+        data(d, "atoc_code", l[11:13], Schedule.atoc_code)
+        data(d, "applicable_timetable", l[13], fn=YN_to_bool)
+        data(d, "rsid", l[14:22])
+        data(d, "data_source", l[22])
             
 
     @linereader("TI")
@@ -306,21 +198,14 @@ class ScheduleMachine():
         l = self.line
 
         d["type"] = "insert"
-        d["tiploc_code"] = l[2:9]
-        d["capitals"] = l[9:11].strip()
-        d["nalco"] = l[11:17].strip()
-        d["nlc_check"] = l[17]
-
-        tps_description = l[18:44].strip()
-        if tps_description:
-            d["tps_description"] = tps_description
-
-        d["po_mcp_code"] = l[49:53].strip()
-        d["crs_code"] = l[53:56]
-
-        description = l[56:72].strip()
-        if description:
-            d["description"] = description
+        data(d, "tiploc_code", l[2:9])
+        data(d, "capitals", l[9:11])
+        data(d, "nalco", l[11:17])
+        data(d, "nlc_check", l[17])
+        data(d, "tps_description", l[18:44])
+        data(d, "po_mcp_code", l[49:53])
+        data(d, "crs_code", l[53:56])
+        data(d, "description", l[56:72])
 
 
     @linereader("TA")
@@ -328,15 +213,15 @@ class ScheduleMachine():
         d = self.tiploc
         l = self.line
         d["type"] = "amend"
-        d["tiploc_code"] = l[2:9]
-        d["capitals"] = l[9:11].strip()
-        d["nalco"] = l[11:17].strip()
-        d["nlc_check"] = l[17]
-        d["tps_description"] = l[18:44].strip()
-        d["po_mcp_code"] = l[49:53].strip()
-        d["crs_code"] = l[53:56]
-        d["description"] = l[56:72].strip()
-        d["new_tiploc_code"] = l[72:79]
+        data(d, "tiploc_code", l[2:9])
+        data(d, "capitals", l[9:11])
+        data(d, "nalco", l[11:17])
+        data(d, "nlc_check", l[17])
+        data(d, "tps_description", l[18:44])
+        data(d, "po_mcp_code", l[49:53])
+        data(d, "crs_code", l[53:56])
+        data(d, "description", l[56:72])
+        data(d, "new_tiploc_code", l[72:79])
 
 
     @linereader("TD")
@@ -344,7 +229,7 @@ class ScheduleMachine():
         d = self.tiploc
         l = self.line
         d["type"] = "delete"
-        d["tiploc_code"] = l[2:9]
+        data(d, "tiploc_code", l[2:9])
 
 
     @linereader("AA")
@@ -352,45 +237,19 @@ class ScheduleMachine():
         d = self.association
         l = self.line
 
-        d["type"] = self.transaction_types[l[2]]
-        d["main_uid"] = l[3:9].strip()
-        d["associated_uid"] = l[9:15].strip()
-        d["start_date"] = date_yymmdd(l[15:21])
-        d["end_date"] = date_yymmdd(l[21:27])
-        d["days"] = parse_days(l[27:34])
-
-        category = l[34:36].strip()
-        if category:
-            d["category"] = Schedule.association_category[category]
-        
-        date_ind = l[36].strip()
-        if date_ind:
-            d["date_ind"] = date_ind
-            if date_ind not in Schedule.association_date_ind:
-                warn("date_ind = %r"%(date_ind,),UnrecognisedWarning)
-
-        d["association_location"] = l[37:44].strip()
-
-        base_suffix = l[44]
-        if base_suffix not in [" ","2"]:
-            warn("base_suffix = %r"%(base_suffix,),UnrecognisedWarning)
-        d["base_suffix"] = base_suffix
-        
-        main_suffix = l[45]
-        if main_suffix not in [" ","2"]:
-            warn("main_suffix = %r"%(main_suffix,),UnrecognisedWarning)
-        d["main_suffix"] = main_suffix
-        
-        association_type = l[47].strip()
-        if association_type:
-            d["association_type"] = association_type
-            if association_type not in Schedule.association_type:
-                warn("association_type = %r"%(association_type,),UnrecognisedWarning)
-
-        stp_indicator = l[79]
-        if stp_indicator not in Schedule.stp_indicator:
-            warn("stp_indicator = %r"%(stp_indicator,),UnrecognisedWarning)
-        d["stp_indicator"] = stp_indicator
+        data(d, "type", l[2], test=Schedule.transaction_types)
+        data(d, "main_uid", l[3:9])
+        data(d, "associated_uid", l[9:15])
+        data(d, "start_date", l[15:21], fn=date_yymmdd)
+        data(d, "end_date", l[21:27], fn=date_yymmdd)
+        data(d, "days", l[27:34], fn=parse_days, strip=False)
+        data(d, "category", l[34:36], test=Schedule.association_category)
+        data(d, "date_ind", l[36], test=Schedule.association_date_ind)
+        data(d, "association_location", l[37:44])
+        data(d, "base_suffix", l[44], test=[" ","2"])
+        data(d, "main_suffix", l[45], test=[" ","2"])
+        data(d, "association_type", l[47], test=Schedule.association_type)
+        data(d, "stp_indicator", l[79], test=Schedule.stp_indicator)
 
 
     @linereader("TN")
@@ -415,32 +274,15 @@ class ScheduleMachine():
         l = self.line
 
         a["type"] = "origin"
-        a["location"] = l[2:10].strip()
-        
-        scheduled_departure = time_hhmmx(l[10:15])
-        if scheduled_departure is not None:
-            a["scheduled_departure"] = scheduled_departure
-
-        a["public_departure"] = time_hhmm(l[15:19])
-        a["platform"] = l[19:22].strip()
-        a["line"] = l[22:25].strip()
-
-        engineering_allowance = timedelta_minh(l[25:27])
-        if engineering_allowance is not None:
-            a["engineering_allowance"] = engineering_allowance
-
-        pathing_allowance = timedelta_minh(l[27:29])
-        if pathing_allowance is not None:
-            a["pathing_allowance"] = pathing_allowance
-
-        activities = parse_activities(l[29:41])
-        if "TB" not in activities:
-            warn("TB is not in train activities", WeirdBehaviour)
-        a["train_activity"] = activities
-
-        performance_allowance = timedelta_minh(l[41:43])
-        if performance_allowance is not None:
-            a["performance_allowance"] = performance_allowance
+        data(a, "location", l[2:10])
+        data(a, "scheduled_departure", l[10:15], fn=time_hhmmx)
+        data(a, "public_departure", l[15:19], fn=time_hhmm)
+        data(a, "platform", l[19:22])
+        data(a, "line", l[22:25])
+        data(a, "engineering_allowance", l[25:27], fn=timedelta_minh)
+        data(a, "pathing_allowance", l[27:29], fn=timedelta_minh)
+        data(a, "train_activity", l[29:41], fn=parse_activities, testfn=lambda x: "TB" in x)
+        data(a, "performance_allowance", l[41:43], fn=timedelta_minh)
         
 
     @linereader("LI")
@@ -449,28 +291,20 @@ class ScheduleMachine():
         l = self.line
 
         a["type"] = "intermediate"
-        a["location"] = l[2:10].strip()
-        a["scheduled_arrival"] = time_hhmmx(l[10:15])
-        a["scheduled_departure"] = time_hhmmx(l[15:20])
-        a["scheduled_pass"] = time_hhmmx(l[20:25])
-        a["public_arrival"] = time_hhmm(l[25:29])
-        a["public_departure"] = time_hhmm(l[29:33])
-        a["platform"] = l[33:36].strip()
-        a["line"] = l[36:39].strip()
-        a["path"] = l[39:42].strip()
-        a["train_activity"] = parse_activities(l[42:54])
         
-        engineering_allowance = timedelta_minh(l[54:56])
-        if engineering_allowance is not None:
-            a["engineering_allowance"] = engineering_allowance
-
-        pathing_allowance = timedelta_minh(l[56:58])
-        if pathing_allowance is not None:
-            a["pathing_allowance"] = pathing_allowance
-
-        performance_allowance = timedelta_minh(l[58:60])
-        if performance_allowance is not None:
-            a["performance_allowance"] = performance_allowance
+        data(a, "location", l[2:10])
+        data(a, "scheduled_arrival", l[10:15], fn=time_hhmmx)
+        data(a, "scheduled_departure", l[15:20], fn=time_hhmmx)
+        data(a, "scheduled_pass", l[20:25], fn=time_hhmmx)
+        data(a, "public_arrival", l[25:29], fn=time_hhmm)
+        data(a, "public_departure", l[29:33], fn=time_hhmm)
+        data(a, "platform", l[33:36])
+        data(a, "line", l[36:39])
+        data(a, "path", l[39:42])
+        data(a, "train_activity", l[42:54])
+        data(a, "engineering_allowance", l[54:56], fn=timedelta_minh)
+        data(a, "pathing_allowance", l[56:58], fn=timedelta_minh)
+        data(a, "performance_allowance", l[58:60], fn=timedelta_minh)
  
 
     @linereader("CR")
@@ -479,91 +313,24 @@ class ScheduleMachine():
         l = self.line
 
         d["type"] = "change"
-        d["location"] = l[2:10].strip()
-
-        category = l[10:12].strip()
-        if category:
-            d["category"] = category
-            if category not in Schedule.category:
-                warn("category = %r"%(category,),UnrecognisedWarning)
-
-        identity = l[12:16].strip()
-        if identity:
-            d["identity"] = identity
-    
-        headcode = l[16:20].strip()
-        if headcode:
-            d["headcode"] = headcode
-
-        service_code = l[21:29].strip()
-        if service_code:
-            d["service_code"] = service_code
-        
-        portion_id = l[29].strip()
-        if portion_id:
-            d["portion_id"] = portion_id
-
-        power_type = l[30:33].strip()
-        if power_type:
-            d["power_type"] = power_type
-            if power_type not in Schedule.power_type:
-                warn("power_type = %r"%(power_type,),UnrecognisedWarning)
-
-        timing_load = l[33:37].strip()
-        if timing_load:
-            if parse_timing_load(power_type, timing_load) is None:
-                warn("timing_load = %r (with power_type = %r)", (timing_load, power_type), UnrecognisedWarning)
-            d["timing_load"] = timing_load
-
-        d["speed"] = int(l[37:40].strip() or 0)
-
-        operating_chars = list(l[40:46].strip())
-        d["operating_chars"] = operating_chars
-        for c in operating_chars:
-            if c not in Schedule.operating_chars:
-                warn("operating_chars has %r"%(c,),UnrecognisedWarning)
-
-        train_class = l[46].strip() or "B"
-        d["train_class"] = train_class
-        if train_class not in Schedule.train_class:
-            warn("train_class = %r"%(train_class,),UnrecognisedWarning)  
-        sleepers = l[47].strip()
-        if sleepers:
-            d["sleepers"] = sleepers
-            if sleepers not in Schedule.sleepers:
-                warn("sleepers = %r"%(sleepers,),UnrecognisedWarning)
-
-        reservations = l[48].strip()
-        if reservations:
-            d["reservations"] = reservations
-            if reservations not in Schedule.reservations:
-                warn("reservations = %r"%(sleepers,),UnrecognisedWarning)
-
-        connection_indicator = l[49].strip()
-        if connection_indicator:
-            d["connection_indicator"] = connection_indicator
-            if connection_indicator not in Schedule.connection_indicator:
-                warn("connection_indicator = %r"%(connection_indicator,),UnrecognisedWarning)
-
-        catering = list(l[50:54].strip())
-        d["catering"] = catering
-        for c in catering:
-            if c not in Schedule.catering:
-                warn("catering has %r"%(c,),UnrecognisedWarning)
-        
-        service_branding = list(l[54:58].strip())
-        d["service_branding"] = service_branding
-        for c in service_branding:
-            if c not in Schedule.service_branding:
-                warn("service_branding has %r"%(c,),UnrecognisedWarning)
-
-        uic_code = l[62:67].strip()
-        if uic_code:
-            d["uic_code"] = uic_code
-
-        rsid = l[67:75].strip()
-        if rsid:
-            d["rsid"] = rsid
+        data(d, "location", l[2:10])
+        data(d, "category", l[10:12], test=Schedule.category)
+        data(d, "identity", l[12:16])
+        data(d, "headcode", l[16:20])
+        data(d, "service_code", l[21:29])
+        data(d, "portion_id", l[29])
+        data(d, "power_type", l[30:33], test=Schedule.power_type)
+        data(d, "timing_load", l[33:37], testfn = lambda x: parse_timing_load(d.get("power_type",None), x))
+        data(d, "speed", l[37:40], fn=int)
+        data(d, "operating_chars", l[40:46], testfn=all_in(Schedule.operating_chars))
+        data(d, "train_class", l[46], test=Schedule.train_class)
+        data(d, "sleepers", l[47], test=Schedule.sleepers)
+        data(d, "reservations", l[48], test=Schedule.reservations)
+        data(d, "connection_indicator", l[49], test=Schedule.connection_indicator)
+        data(d, "catering", l[50:54], testfn=all_in(Schedule.catering))
+        data(d, "service_branding", l[54:58], test=Schedule.service_branding)
+        data(d, "uic_code", l[62:67])
+        data(d, "rsid", l[67:75])
 
 
     @linereader("LT")
@@ -572,16 +339,13 @@ class ScheduleMachine():
         l = self.line
 
         a["type"] = "terminating"
-        a["location"] = l[2:10].strip()
-        a["scheduled_arrival"] = time_hhmmx(l[10:15])
-        a["public_arrival"] = time_hhmm(l[15:19])
-        a["platform"] = l[19:22].strip()
-        a["path"] = l[22:25].strip()
 
-        train_activity = parse_activities(l[25:37])
-        if 'TF' not in train_activity:
-            warn("TF is not in train activities", WeirdBehaviour)
-        a["train_activity"] = train_activity
+        data(a, "location", l[2:10])
+        data(a, "scheduled_arrival", l[10:15], fn=time_hhmmx)
+        data(a, "public_arrival", l[15:19], fn=time_hhmm)
+        data(a, "platform", l[19:22])
+        data(a, "path", l[22:25])
+        data(a, "train_activities", l[25:37], fn=parse_activities, testfn=lambda x: 'TF' in x)
 
 
     @linereader("LN")
@@ -618,8 +382,8 @@ class ScheduleMachine():
 
             self.iterator = iter(f)
             self.nextline()
-            self.header = None
 
+            self.header = {}
             self.read_HD()
             self.write_header()
 
