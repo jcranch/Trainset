@@ -11,6 +11,7 @@ from base import *
 from read_schedules import *
 from read_fixed_links import *
 from read_additional_links import *
+from read_stations import *
 
 
 
@@ -44,31 +45,51 @@ class UndesirableOutput(Warning):
 
 
 
+def dictcheck(kind,d):
+    "Checks to see if d has any empty values"
+    for (k,v) in d.iteritems():
+        if v is None or v == "":
+            warn("Found %s with null or empty value for %r"%(kind,k), UndesirableOutput)
+
 class TestScheduleMachine(ScheduleMachine):
-    
-    def dictcheck(self,kind,d):
-        "Checks to see if d has any empty values"
-        for (k,v) in d.iteritems():
-            if v is None or v == "":
-                warn("Found %s with null or empty value for %r"%(kind,k), UndesirableOutput)
 
     def write_header(self):
-        self.dictcheck("header", self.header)
+        dictcheck("header", self.header)
 
     def write_schedule(self):
-        self.dictcheck("schedule", self.schedule)
+        dictcheck("schedule", self.schedule)
 
     def write_tiploc(self):
-        self.dictcheck("tiploc", self.tiploc)
+        dictcheck("tiploc", self.tiploc)
 
     def write_association(self):
-        self.dictcheck("association", self.association)
+        dictcheck("association", self.association)
+
+class TestStationMachine(StationMachine):
+
+    def write_header(self, d):
+        dictcheck("header", d)
+
+    def write_station(self, d):
+        if d["3alpha_code"] == "":
+            warn("No 3-alpha code in station", UndesirableOutput)
+        for t in d["tiplocs"]:
+            dictcheck("tiploc", t)
+
+    def write_alias(self, d):
+        dictcheck("alias", d)
+
+    def write_group(self, d):
+        dictcheck("group", d)
+
+
+
 
 
 
 if __name__=="__main__":
 
-    everything = set(["schedules", "links"])
+    everything = set(["schedules", "links", "stations"])
 
     if len(sys.argv) > 1:
         to_do = set(sys.argv[1:])
@@ -101,6 +122,9 @@ if __name__=="__main__":
 
         if got(to_do,"manual_schedules"):
             do_all("ZTR", TestScheduleMachine(manual=True).parse)
+
+        if got(to_do,"stations"):
+            do_all("MSN", TestStationMachine().parse)
 
     if len(to_do) > 0:
         print "Unused tasks: %s"%(", ".join(to_do),)
