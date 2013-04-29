@@ -64,20 +64,6 @@ class TestScheduleMachine(ScheduleMachine):
     def write_association(self):
         self.dictcheck("association", self.association)
 
-def test_schedules():
-    for f in files_of_extension("MCA"):
-        print
-        print "%s:"%(f,)
-        TestScheduleMachine().parse(f)
-
-
-
-def test_additional_links():
-    for f in files_of_extension("ALF"):
-        print
-        print "%s:"%(f,)
-        read_alf(f)
-
 
 
 if __name__=="__main__":
@@ -114,7 +100,7 @@ if __name__=="__main__":
             do_all("CFA", TestScheduleMachine().parse)
 
         if got(to_do,"manual_schedules"):
-            do_all("ZTR", TestScheduleMachine().parse)
+            do_all("ZTR", TestScheduleMachine(manual=True).parse)
 
     if len(to_do) > 0:
         print "Unused tasks: %s"%(", ".join(to_do),)

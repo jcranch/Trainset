@@ -95,7 +95,14 @@ def YN_to_bool(c):
     elif c == "N":
         return False
     else:
-        raise IncoherentData
+        raise IncoherentData("Should be Y or N")
+
+
+def parse_manual_3alpha(s):
+    if len(s)==7 and s[3:] == "----":
+        return s[:3]
+    else:
+        raise IncoherentData('Should be a 3-alpha code followed by "----"')
 
 
 def linereader(expected_record_type):
@@ -123,6 +130,9 @@ class ScheduleMachine():
     A class parsing schedules. Intended to be subclassed to specify
     the write methods (at the bottom), and begin() and end()
     """
+
+    def __init__(self,manual=False):
+        self.manual = manual
 
     def nextline(self):
         try:
@@ -198,7 +208,10 @@ class ScheduleMachine():
         l = self.line
 
         d["type"] = "insert"
-        data(d, "tiploc_code", l[2:9])
+        if self.manual:
+            data(d, "3alpha", l[2:9], fn=parse_manual_3alpha)
+        else:
+            data(d, "tiploc_code", l[2:9])
         data(d, "capitals", l[9:11])
         data(d, "nalco", l[11:17])
         data(d, "nlc_check", l[17])
@@ -213,7 +226,10 @@ class ScheduleMachine():
         d = self.tiploc
         l = self.line
         d["type"] = "amend"
-        data(d, "tiploc_code", l[2:9])
+        if self.manual:
+            data(d, "3alpha", l[2:9], fn=parse_manual_3alpha)
+        else:
+            data(d, "tiploc_code", l[2:9])
         data(d, "capitals", l[9:11])
         data(d, "nalco", l[11:17])
         data(d, "nlc_check", l[17])
@@ -221,7 +237,10 @@ class ScheduleMachine():
         data(d, "po_mcp_code", l[49:53])
         data(d, "crs_code", l[53:56])
         data(d, "description", l[56:72])
-        data(d, "new_tiploc_code", l[72:79])
+        if self.manual:
+            data(d, "new_3alpha", l[72:79], fn=parse_manual_3alpha)
+        else:
+            data(d, "new_tiploc_code", l[72:79])
 
 
     @linereader("TD")
@@ -229,7 +248,10 @@ class ScheduleMachine():
         d = self.tiploc
         l = self.line
         d["type"] = "delete"
-        data(d, "tiploc_code", l[2:9])
+        if self.manual:
+            data(d, "3alpha", l[2:9], fn=parse_manual_3alpha)
+        else:
+            data(d, "tiploc_code", l[2:9])
 
 
     @linereader("AA")
