@@ -97,7 +97,9 @@ class Schedule():
                          "H3": "RfD European Channel Tunnel Automotive",
                          "H4": "RfD European Channel Tunnel Contract Services",
                          "H5": "RfD European Channel Tunnel Haulmark",
-                         "H6": "RfD European Channel Tunnel Joint Venture"}}
+                         "H6": "RfD European Channel Tunnel Joint Venture"},
+                    "Other":
+                        {"SS": "Ship"}}
     category = dict((k,(a,b)) for (a,d) in category_pre.iteritems() for (k,b) in d.iteritems())
 
     power_type = {
