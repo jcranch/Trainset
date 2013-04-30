@@ -82,9 +82,15 @@ class TestStationMachine(StationMachine):
     def write_group(self, d):
         dictcheck("group", d)
 
+class TestFixedLinkMachine(FixedLinkMachine):
 
+    def write_link(self, d):
+        dictcheck("fixed link", d)
 
+class TestAdditionalLinkMachine(AdditionalLinkMachine):
 
+    def write_link(self, d):
+        dictcheck("additional link", d)
 
 
 if __name__=="__main__":
@@ -109,10 +115,10 @@ if __name__=="__main__":
     with WarningFilter(ws):
 
         if got(to_do,"fixed_links"):
-            do_all("FLF", read_flf)
+            do_all("FLF", TestFixedLinkMachine().parse)
             
         if got(to_do,"additional_links"):
-            do_all("ALF", read_alf)
+            do_all("ALF", TestAdditionalLinkMachine().parse)
 
         if got(to_do,"full_schedules"):
             do_all("MCA", TestScheduleMachine().parse)

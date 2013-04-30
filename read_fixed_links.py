@@ -1,7 +1,4 @@
-def read_flf(filename):
-    return list(read_flf_generator(filename))
-
-def read_flf_generator(filename):
+def flf_read(filename):
     with open(filename,'r') as f:
         for l in f:
             l = l.split()
@@ -12,3 +9,13 @@ def read_flf_generator(filename):
                 d["destination"] = l[6]
                 d["duration"] = int(l[8])
                 yield d
+
+
+class FixedLinkMachine():
+
+    def parse(self,filename):
+        for d in flf_read(filename):
+            self.write_link(d)
+
+    def write_link(self,d):
+        pass

@@ -69,8 +69,17 @@ def y2k_coding(n):
     else:
         return 1900 + n
 
+def date_dd_mm_yyyy(s):
+    return date(int(s[6:10]), int(s[3:5]), int(s[0:2]))
+
 def date_ddmmyy(s):
     return date(y2k_coding(int(s[4:6])), int(s[2:4]), int(s[0:2]))
+
+def date_yymmdd(s):
+    if s == "999999":
+        return None # a standard null format
+    else:
+        return date(y2k_coding(int(s[0:2])), int(s[2:4]), int(s[4:6]))
 
 def datetime_ddmmyyhhmm(s):
     """
@@ -80,12 +89,6 @@ def datetime_ddmmyyhhmm(s):
 
 def datetime_dd_mm_yy_hh_mm_ss(s):
     return datetime(y2k_coding(int(s[6:8])), int(s[3:5]), int(s[0:2]), int(s[9:11]), int(s[12:14]), int(s[15:17]))
-
-def date_yymmdd(s):
-    if s == "999999":
-        return None # a standard null format
-    else:
-        return date(y2k_coding(int(s[0:2])), int(s[2:4]), int(s[4:6]))
 
 def time_hhmm(s):
     return time(int(s[0:2]), int(s[2:4]))
