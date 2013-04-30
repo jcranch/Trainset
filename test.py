@@ -8,9 +8,10 @@ import sys
 from warnings import warn
 
 from base import *
-from read_schedules import *
-from read_fixed_links import *
 from read_additional_links import *
+from read_fixed_links import *
+from read_interchanges import *
+from read_schedules import *
 from read_stations import *
 
 
@@ -92,10 +93,16 @@ class TestAdditionalLinkMachine(AdditionalLinkMachine):
     def write_link(self, d):
         dictcheck("additional link", d)
 
+class TestInterchangeMachine(InterchangeMachine):
+
+    def write_interchange(self, d):
+        dictcheck("interchange", d)
+
+
 
 if __name__=="__main__":
 
-    everything = set(["schedules", "links", "stations"])
+    everything = set(["schedules", "links", "stations", "interchanges"])
 
     if len(sys.argv) > 1:
         to_do = set(sys.argv[1:])
@@ -131,6 +138,9 @@ if __name__=="__main__":
 
         if got(to_do,"stations"):
             do_all("MSN", TestStationMachine().parse)
+
+        if got(to_do,"interchanges"):
+            do_all("TSI", TestInterchangeMachine().parse)
 
     if len(to_do) > 0:
         print "Unused tasks: %s"%(", ".join(to_do),)
