@@ -8,8 +8,7 @@ import sys
 from warnings import warn
 
 from base import *
-from reader.additional_links import *
-from reader.fixed_links import *
+from reader.links import *
 from reader.interchanges import *
 from reader.schedules import *
 from reader.stations import *
@@ -83,15 +82,10 @@ class TestStationMachine(StationMachine):
     def write_group(self, d):
         dictcheck("group", d)
 
-class TestFixedLinkMachine(FixedLinkMachine):
+class TestLinkMachine(LinkMachine):
 
     def write_link(self, d):
-        dictcheck("fixed link", d)
-
-class TestAdditionalLinkMachine(AdditionalLinkMachine):
-
-    def write_link(self, d):
-        dictcheck("additional link", d)
+        dictcheck("link", d)
 
 class TestInterchangeMachine(InterchangeMachine):
 
@@ -122,10 +116,10 @@ if __name__=="__main__":
     with WarningFilter(ws):
 
         if got(to_do,"fixed_links"):
-            do_all("FLF", TestFixedLinkMachine().parse)
+            do_all("FLF", TestLinkMachine(style="fixed").parse)
             
         if got(to_do,"additional_links"):
-            do_all("ALF", TestAdditionalLinkMachine().parse)
+            do_all("ALF", TestLinkMachine(style="additional").parse)
 
         if got(to_do,"full_schedules"):
             do_all("MCA", TestScheduleMachine().parse)

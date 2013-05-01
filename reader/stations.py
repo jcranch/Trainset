@@ -28,14 +28,14 @@ class StationMachine():
             d["cate_type"] = l[35]
             d["tiploc_code"] = l[36:43].strip()
             if l[43:46] != p3a:
-                d["3alpha_code"] = l[43:46]
+                d["3alpha"] = l[43:46]
             d["easting"] = int(l[52:57])
             d["estimated"] = l[57] == "E"
             d["northing"] = int(l[58:63])
             d["change_time"] = int(l[63:65].strip())
             tiplocs.append(d)
 
-        self.write_station({"3alpha_code":p3a, "tiplocs":tiplocs})
+        self.write_station({"3alpha":p3a, "tiplocs":tiplocs})
 
 
     def read_alias(self,l):

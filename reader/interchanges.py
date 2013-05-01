@@ -1,5 +1,7 @@
-from base import *
+from datetime import timedelta
 from warnings import warn
+
+from base import *
 
 
 def read_interchanges(filename):
@@ -22,7 +24,7 @@ def read_interchanges(filename):
 
             if not l[3].isdigit():
                 raise IncoherentData("interchange time is not an integer: %r"%(l[3],))
-            d["interchange_time"] = int(l[3])
+            d["interchange_time"] = timedelta(minutes = int(l[3]))
 
             yield d
 
