@@ -8,11 +8,11 @@ import sys
 from warnings import warn
 
 from base import *
-from read_additional_links import *
-from read_fixed_links import *
-from read_interchanges import *
-from read_schedules import *
-from read_stations import *
+from reader.additional_links import *
+from reader.fixed_links import *
+from reader.interchanges import *
+from reader.schedules import *
+from reader.stations import *
 
 
 
