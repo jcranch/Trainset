@@ -45,5 +45,8 @@ def make_sqlite(indir, outfile):
 
 if __name__=="__main__":
     outfile = "../data.sqlite"
-    os.remove(outfile)
+    try:
+        os.remove(outfile)
+    except OSError:
+        pass
     make_sqlite("../traindata/trains-043/", outfile)
