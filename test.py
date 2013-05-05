@@ -71,7 +71,7 @@ class TestStationMachine(StationMachine):
         dictcheck("header", d)
 
     def write_station(self, d):
-        if d["3alpha_code"] == "":
+        if d["3alpha"] == "":
             warn("No 3-alpha code in station", UndesirableOutput)
         for t in d["tiplocs"]:
             dictcheck("tiploc", t)

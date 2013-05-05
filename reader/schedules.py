@@ -90,7 +90,13 @@ class ScheduleMachine():
     """
 
     def __init__(self,manual=False):
+        """
+        manual: is this from the "manual trains" file, which allegedly
+        has subtly different geolocation conventions, and has years
+        out by 44 years?
+        """
         self.manual = manual
+
 
     def nextline(self):
         try:
@@ -126,8 +132,12 @@ class ScheduleMachine():
 
         data(d, "type", l[2], test=Schedule.transaction_types)
         data(d, "uid", l[3:9])
-        data(d, "date_runs_from", l[9:15], fn=date_yymmdd)
-        data(d, "date_runs_to", l[15:21], fn=date_yymmdd)
+        if self.manual:
+            data(d, "date_runs_from", l[9:15], fn=date_yymmdd44)
+            data(d, "date_runs_to", l[15:21], fn=date_yymmdd44)
+        else:
+            data(d, "date_runs_from", l[9:15], fn=date_yymmdd)
+            data(d, "date_runs_to", l[15:21], fn=date_yymmdd)
         data(d, "days_run", l[21:28], fn=parse_days, strip=False)
         data(d, "bank_holiday_running", l[28], test=Schedule.bhx)
         data(d, "train_status", l[29], test=Schedule.status)

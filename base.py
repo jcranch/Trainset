@@ -69,6 +69,13 @@ def y2k_coding(n):
     else:
         return 1900 + n
 
+def w44_coding(n):
+    """
+    Another system used elsewhere to deal with the Y2K bug. The idea,
+    surely a masterstroke of genius, is to add 44 to all year numbers.
+    """
+    return (1956 + n)
+
 def date_dd_mm_yyyy(s):
     return date(int(s[6:10]), int(s[3:5]), int(s[0:2]))
 
@@ -80,6 +87,15 @@ def date_yymmdd(s):
         return None # a standard null format
     else:
         return date(y2k_coding(int(s[0:2])), int(s[2:4]), int(s[4:6]))
+
+def date_yymmdd44(s):
+    """
+    As the above, but with the bizarre "add 44" year convention in force.
+    """
+    if s == "999999":
+        return None
+    else:
+        return date(w44_coding(int(s[0:2])), int(s[2:4]), int(s[4:6]))
 
 def datetime_ddmmyyhhmm(s):
     """
