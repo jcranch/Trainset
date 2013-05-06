@@ -66,7 +66,7 @@ def osm():
 def makeTileLayer():
     tl = TileLayer()
     E, N = railtoWGS84(14358, 63870) # Sheffield
-    conn = sqlite3.connect('../data.sqlite')
+    conn = sqlite3.connect('../../data.sqlite')
     c = conn.cursor()
     for Erail, Nrail, ChangeTime in c.execute("select easting, northing, change_time from stations"):
         E, N = railtoWGS84(Erail, Nrail)
@@ -75,4 +75,4 @@ def makeTileLayer():
     return tl
 
 if __name__ == '__main__':
-    app.run(debug=False)
+    app.run(debug=True)
