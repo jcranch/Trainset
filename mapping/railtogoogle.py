@@ -3,6 +3,7 @@ import globalmaptiles
 import Image, ImageDraw
 import sqlite3
 from flask import Flask, send_file, render_template
+from bng_to_latlon import OSGB36toWGS84
 import StringIO
 from flask.ext.cache import Cache
 app = Flask(__name__)
@@ -11,7 +12,7 @@ cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 g = globalmaptiles.GlobalMercator()
 
 def railtoWGS84(E,N):
-    return os2wgs84.OSGB36toWGS84((E - 10000) * 100,  (N - 60000) * 100)
+    return OSGB36toWGS84((E - 10000) * 100,  (N - 60000) * 100)
 
 def railto900913meters(E, N):
     return g.LatLonToMeters(*railtoWGS84(E,N))
